@@ -1,7 +1,7 @@
-import sys
 import aiohttp
 import asyncio
 import time
+import sys
 
 from typing import List
 from dataclasses import dataclass
@@ -122,6 +122,29 @@ class ProxyChecker:
                 f.write(f"{proxy.url}\n")
         print(f"\nРабочие прокси сохранены в файл {filename}")
 
+    def save_all_unique_proxies(self, proxies: List[str], filename: str = "just_proxy.txt"):
+        """Сохраняет все уникальные прокси без проверки"""
+        unique_proxies = set()
+
+        # Нормализуем и добавляем прокси в множество
+        for proxy in proxies:
+            proxy = proxy.strip()
+            if not proxy:
+                continue
+
+            # Удаляем протокол если есть
+            if '://' in proxy:
+                proxy = proxy.split('://')[-1]
+
+            unique_proxies.add(proxy)
+
+        # Сохраняем в файл
+        with open(filename, 'w', encoding='utf-8') as f:
+            for proxy in sorted(unique_proxies):
+                f.write(f"{proxy}\n")
+
+        print(f"Сохранено {len(unique_proxies)} уникальных прокси в файл {filename}")
+
 
 async def load_urls_from_file(filename: str) -> List[str]:
     try:
@@ -137,7 +160,7 @@ async def load_urls_from_file(filename: str) -> List[str]:
 
 async def main():
     start_time = time.time()
-    checker = ProxyChecker(timeout=1.0)
+    checker = ProxyChecker(timeout=10.0)
 
     print("Загрузка ссылок из файла...")
     urls = await load_urls_from_file('links.txt')
@@ -147,11 +170,14 @@ async def main():
     proxies = await checker.fetch_proxy_lists(urls)
     print(f"Найдено {len(proxies)} уникальных прокси")
 
+    # Сохраняем все уникальные прокси без проверки
+    checker.save_all_unique_proxies(proxies)
+
     print("Проверка прокси...")
     await checker.check_proxies(proxies)
 
-    # Сохраняем все рабочие прокси
-    checker.save_working_proxies('output.txt')
+    # Сохраняем рабочие прокси
+    checker.save_working_proxies()
 
     # Выводим топ 10 самых быстрых для информации
     best_proxies = checker.get_best_proxies(10)
